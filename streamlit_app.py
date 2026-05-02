@@ -23,7 +23,7 @@ except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError):
 from sqlalchemy import func, select  # noqa: E402
 
 from polyforecast.storage.base import session_scope  # noqa: E402
-from polyforecast.storage.models import PipelineRun  # noqa: E402
+from polyforecast.storage.models import Market, MarketSnapshot, PipelineRun  # noqa: E402
 
 
 def human_age(delta: timedelta) -> str:
@@ -91,6 +91,61 @@ if recent:
     )
 else:
     st.info("No runs yet.")
+
+st.divider()
+
+st.header("Latest scan — candidate markets")
+st.markdown(
+    "Markets the scanner pulled from Polymarket and persisted to the database. "
+    "Filtered by activity, resolution window (14–180 days), and orderbook depth "
+    "($50K within 5% of midpoint). Midpoint shown is from the most recent snapshot."
+)
+
+with session_scope() as session:
+    market_count = session.scalar(select(func.count()).select_from(Market)) or 0
+    snapshot_count = (
+        session.scalar(select(func.count()).select_from(MarketSnapshot)) or 0
+    )
+    latest = (
+        select(
+            MarketSnapshot.market_id,
+            func.max(MarketSnapshot.id).label("latest_id"),
+        )
+        .group_by(MarketSnapshot.market_id)
+        .subquery()
+    )
+    rows = session.execute(
+        select(Market, MarketSnapshot)
+        .join(latest, latest.c.market_id == Market.id)
+        .join(MarketSnapshot, MarketSnapshot.id == latest.c.latest_id)
+        .order_by(Market.end_date)
+    ).all()
+
+c1, c2 = st.columns(2)
+c1.metric("Markets tracked", market_count)
+c2.metric("Snapshots captured", snapshot_count)
+
+if rows:
+    st.dataframe(
+        [
+            {
+                "question": m.question,
+                "end_date": m.end_date,
+                "category": m.category,
+                "midpoint": snap.midpoint,
+                "best_bid": snap.best_bid,
+                "best_ask": snap.best_ask,
+                "depth_bid_usd": snap.depth_bid_usd,
+                "depth_ask_usd": snap.depth_ask_usd,
+                "snapshot_at": snap.captured_at,
+            }
+            for m, snap in rows
+        ],
+        hide_index=True,
+        width="stretch",
+    )
+else:
+    st.info("No markets scanned yet. The daily cron runs at 12:00 UTC.")
 
 st.divider()
 

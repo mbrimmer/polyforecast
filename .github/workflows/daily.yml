@@ -34,7 +34,14 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: uv run alembic upgrade head
 
+      - name: Run scanner
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LOG_FORMAT: json
+        run: uv run polyforecast --json-logs scan
+
       - name: Run heartbeat
+        if: always()
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GITHUB_SHA: ${{ github.sha }}

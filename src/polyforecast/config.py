@@ -27,6 +27,28 @@ class Settings(BaseSettings):
     )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
+    # Scanner thresholds. Defaults align with .env.example; override per-env via env vars.
+    scanner_liquidity_threshold_usd: float = Field(
+        default=50_000.0, alias="SCANNER_LIQUIDITY_THRESHOLD_USD"
+    )
+    scanner_min_days_to_resolution: int = Field(
+        default=14, alias="SCANNER_MIN_DAYS_TO_RESOLUTION"
+    )
+    scanner_max_days_to_resolution: int = Field(
+        default=180, alias="SCANNER_MAX_DAYS_TO_RESOLUTION"
+    )
+
+    # Polymarket client tunables.
+    polymarket_clob_base_url: str = Field(
+        default="https://clob.polymarket.com", alias="POLYMARKET_CLOB_BASE_URL"
+    )
+    polymarket_gamma_base_url: str = Field(
+        default="https://gamma-api.polymarket.com", alias="POLYMARKET_GAMMA_BASE_URL"
+    )
+    polymarket_max_concurrency: int = Field(
+        default=5, alias="POLYMARKET_MAX_CONCURRENCY"
+    )
+
     @field_validator("database_url")
     @classmethod
     def _normalize_pg_driver(cls, v: str) -> str:
